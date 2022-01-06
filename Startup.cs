@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using MoviesList.Data;
+using MoviesList.Repository;
 
 namespace MoviesList
 {
@@ -20,6 +21,8 @@ namespace MoviesList
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddScoped<IMovieRepository, MovieRepository>();
+
             services.AddControllersWithViews();
 
             services.AddDbContext<MoviesListContext>(options =>

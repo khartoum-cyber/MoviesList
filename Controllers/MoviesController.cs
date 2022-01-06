@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
@@ -6,27 +7,28 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using MoviesList.Data;
 using MoviesList.Models;
+using MoviesList.Repository;
 
 namespace MoviesList.Controllers
 {
     public class MoviesController : Controller
     {
-        private readonly MoviesListContext _context;
+        private readonly IMovieRepository _movieRepository;
 
-        public MoviesController(MoviesListContext context)
+        public MoviesController(IMovieRepository movieRepository)
         {
-            _context = context;
+            _movieRepository = movieRepository;
         }
 
         // GET: Movies
         public async Task<IActionResult> Index(string movieGenre, string searchString)
         {
             // Use LINQ to get list of genres.
-            IQueryable<string> genreQuery = from m in _context.Movie
+            IEnumerable<string> genreQuery = from m in _movieRepository.GetAll()
                                             orderby m.Genre
                                             select m.Genre;
 
-            var movies = from m in _context.Movie
+            var movies = from m in _movieRepository.GetAll()
                          select m;
 
             if (!string.IsNullOrEmpty(searchString))
@@ -41,8 +43,8 @@ namespace MoviesList.Controllers
 
             var movieGenreVM = new MovieGenreViewModel
             {
-                Genres = new SelectList(await genreQuery.Distinct().ToListAsync()),
-                Movies = await movies.ToListAsync()
+                Genres = new SelectList(genreQuery.Distinct().ToList()),
+                Movies = movies.ToList()
             };
 
             return View(movieGenreVM);
@@ -56,8 +58,8 @@ namespace MoviesList.Controllers
                 return NotFound();
             }
 
-            var movie = await _context.Movie
-                .FirstOrDefaultAsync(m => m.Id == id);
+            var movie = _movieRepository.GetAll()
+                .FirstOrDefault(m => m.Id == id);
             if (movie == null)
             {
                 return NotFound();
@@ -81,8 +83,8 @@ namespace MoviesList.Controllers
         {
             if (ModelState.IsValid)
             {
-                _context.Add(movie);
-                await _context.SaveChangesAsync();
+                _movieRepository.Insert(movie);
+                _movieRepository.Save();
                 return RedirectToAction(nameof(Index));
             }
             return View(movie);
@@ -96,7 +98,7 @@ namespace MoviesList.Controllers
                 return NotFound();
             }
 
-            var movie = await _context.Movie.FindAsync(id);
+            var movie = _movieRepository.GetById((int)id);
             if (movie == null)
             {
                 return NotFound();
@@ -120,8 +122,8 @@ namespace MoviesList.Controllers
             {
                 try
                 {
-                    _context.Update(movie);
-                    await _context.SaveChangesAsync();
+                    _movieRepository.Update(movie);
+                    _movieRepository.Save();
                 }
                 catch (DbUpdateConcurrencyException)
                 {
@@ -147,8 +149,8 @@ namespace MoviesList.Controllers
                 return NotFound();
             }
 
-            var movie = await _context.Movie
-                .FirstOrDefaultAsync(m => m.Id == id);
+            var movie = _movieRepository.GetById((int)id);
+
             if (movie == null)
             {
                 return NotFound();
@@ -162,15 +164,15 @@ namespace MoviesList.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var movie = await _context.Movie.FindAsync(id);
-            _context.Movie.Remove(movie);
-            await _context.SaveChangesAsync();
+            var movie = _movieRepository.GetById(id);
+            _movieRepository.Delete(id);
+            _movieRepository.Save();
             return RedirectToAction(nameof(Index));
         }
 
         private bool MovieExists(int id)
         {
-            return _context.Movie.Any(e => e.Id == id);
+            return _movieRepository.Equals(id);
         }
     }
 }
